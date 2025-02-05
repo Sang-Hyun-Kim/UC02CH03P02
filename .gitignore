@@ -82,3 +82,5 @@ Content/
 Platforms/
 
 *.uproject
+
+*.uasset
