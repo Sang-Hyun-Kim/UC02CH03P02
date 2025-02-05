@@ -113,7 +113,6 @@ public:
 ```C++
 AP03_Test_Drone::AP03_Test_Drone()
 {
- 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	RootCollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootCollisioComponent"));
 	SetRootComponent(RootCollisionComponent);
@@ -136,8 +135,171 @@ AP03_Test_Drone::AP03_Test_Drone()
 }
 ```
 
+##### 주요 이동, 회전 함수 바인딩
+- GameMode를 통해 전달해준 DroneController 클래스를 통해 전달받는 입력 값들이 알맞은 조건에 따라 각 기능이 수행될 수 있도록 주요 기능 함수들을 바인딩 해주는 과정을 SetupPlayerInputComponent 함수에서 수행합니다.
+```C++
+void AP03_Test_Drone::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+{
+	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	if (UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent))
+	{
+		if (AP03DroneController* DroneController = Cast<AP03DroneController>(GetController()))
+		{
+			if (DroneController->P03_IA_Move)
+			{
+				EnhancedInput->BindAction(
+					DroneController->P03_IA_Move,
+					ETriggerEvent::Triggered,
+					this,
+					&AP03_Test_Drone::Move
+				);
+			}
+
+			if (DroneController->P03_IA_Look)
+			{
+				EnhancedInput->BindAction(
+					DroneController->P03_IA_Look,
+					ETriggerEvent::Triggered,
+					this,
+					&AP03_Test_Drone::Look
+				);
+			}
+
+			if (DroneController->P03_IA_Roll)
+			{
+				EnhancedInput->BindAction(
+					DroneController->P03_IA_Roll,
+					ETriggerEvent::Triggered,
+					this,
+					&AP03_Test_Drone::Roll
+				);
+			}
+		}
+	}
+	
+}
+```
+
+##### 각 주요 기능 함수 소개
+###### 이동 함수
+- Move 함수는 넘겨 받은 FVector3D 값을 DeltaSeconds 값에 맞춰 AddActorLocalOffset 함수를 통해 넘겨 줍니다.
+- 이때 공중과 지상 속도를 다르게 하기 위해 멤버 변수 bool bIsOnGround에 상태에 따라 계산 값이 결정되도록 구현했습니다
+- 충돌 감지를 위해 bool 인자를 추가로 전달합니다.
+  ```C++
+	const FVector3d MoveInput = value.Get<FVector3d>();
+	
+	// 땅과 하늘 중 맞는 속도의 값만 반영됨
+	FVector NewVel = (MoveInput) * GroundSpeed * bIsOnGround + MoveInput * AirSpeed* !bIsOnGround;
+
+	AddActorLocalOffset(NewVel * GetWorld()->GetDeltaSeconds(), true);
+  ```
+###### Look(Yaw/Pitch 회전) 함수
+- Look 함수는 넘겨 받은 FVector2d 값을 DeltaSeconds 값에 맞춰 SetActorRelativeRotation 함수를 통해 넘겨 줍니다.
+- 이때 오일러 각에 따른 회전 순서로 인한 짐볼 락(Gimbal Lock) 현상을 방지하기 위해 언리얼에서 제공하는 쿼터니언 값으로 Rotator 값을 수정했습니다. 
+- 회전해야할 쿼터니안 값을 라디안을 통해 계산한 다음 이를 현재 회전 값에 결합(*)하여 이를 최종적으로 Actor 회전 값으로 설정합니다.
+  ```C++
+	const FVector3d MoveInput = value.Get<FVector3d>();
+	
+	// 땅과 하늘 중 맞는 속도의 값만 반영됨
+	FVector NewVel = (MoveInput) * GroundSpeed * bIsOnGround + MoveInput * AirSpeed* !bIsOnGround;
+
+	AddActorLocalOffset(NewVel * GetWorld()->GetDeltaSeconds(), true);
+  ```
+###### Roll(X 축 회전) 함수
+- Roll 함수는 넘겨 받은 float 값을 DeltaSeconds 값에 맞춰 SetActorRelativeRotation 함수를 통해 넘겨 줍니다.
+- 위 Look 함수와 동일한 방식으로 쿼터니안 값을 현재 회전 값에 결합해 액터의 Rotator를 설정해줍니다.
+  ```C++
+	const FVector3d MoveInput = value.Get<FVector3d>();
+	
+	// 땅과 하늘 중 맞는 속도의 값만 반영됨
+	FVector NewVel = (MoveInput) * GroundSpeed * bIsOnGround + MoveInput * AirSpeed* !bIsOnGround;
+
+	AddActorLocalOffset(NewVel * GetWorld()->GetDeltaSeconds(), true);
+  ```
+#### 착지 판단과 중력 적용 기능
+##### 착지 판단
+- 착지판단을 위해 일정 크기(Drone Pawn의 하부 크기를 가늠한 크기) 만큼 World의 Z축 음의 방향으로 RayCasting을 수행했습니다.
+- 이때 RayCasting을 통해 특정 액터와 충돌 감지했을 경우 해당 액터의 **태그가 "Ground" 인 경우 땅이라고 판단**하도록 구현했습니다.
+- 이렇게 설정된 멤버 변수 bIsOnGround bool 변수는 추후 이동 속도나 중력 가속도 적용 여부를 결정합니다.
+```C++
+
+// header
+	// 바닥 체크하기
+	bool bIsOnGround = false;  // 땅에 있는지 여부
+	float GroundCheckDistance = 200.0f; // 레이캐스트 길이
+// cpp
+void AP03_Test_Drone::CheckIfOnGround()
+{
+	FVector Start = GetActorLocation();
+	FVector End = Start - FVector(0, 0, GroundCheckDistance); // 아래 방향
+
+	FHitResult HitResult;
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this); // 자기 자신 무시
+
+	// 레이캐스트 실행
+	bool bHit = GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, Params);
+
+	// 바닥 감지 여부 업데이트
 
 
+	if (bHit)
+	{
+		// 충돌한 액터가 있을 경우
+		AActor* HitActor = HitResult.GetActor();
+
+		// 충돌한 액터의 태그 비교
+		if (HitActor)
+		{
+			// 태그가 "Enemy"인 경우 비교
+			if (HitActor->ActorHasTag(TEXT("Ground")))
+			{
+				bIsOnGround = bHit;
+			}
+		}
+	}
+	else
+	{
+		bIsOnGround = bHit;
+	}
+}
+```
+##### Tick 중력 적용
+- Tick 함수 내부에서 CheckIfOnGround() 함수를 수행 후 이전 Z값과 현재 Z값의 변화량이 음의 방향인 경우(중력과 반대되는 벡터가 아닌 경우를 상승중이라고 임의로 설정한 기준에서 벗어남을 뜻함) 중력 가속도가 적용됩니다.
+
+```
+// header
+	FVector FallVelocity = FVector::ZeroVector;      // 낙하 속도
+	float Gravity = -98.0f; // 중력 가속도 (기본값: Unreal Engine 중력값)
+	float LastZValue;
+// cpp
+void AP03_Test_Drone::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	CheckIfOnGround();
+	float CurrentZ = GetActorLocation().Z;
+	if (CurrentZ - LastZValue > 0)
+	{
+		FallVelocity.Z = 0;
+	}
+	else
+	{
+		// 중력 적용
+		if (!bIsOnGround) // 땅에 없으면 중력 적용
+		{
+			FallVelocity.Z += Gravity;
+		}
+		else
+		{
+			FallVelocity.Z = 0;
+		}
+	}
+	LastZValue = CurrentZ;
+	// 이동 적용
+	AddActorWorldOffset(FallVelocity * DeltaTime, true);
+}
+```
 ### 시연 영상
 
 
