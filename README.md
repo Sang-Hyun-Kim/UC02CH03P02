@@ -29,7 +29,7 @@
 
 ### 주요 구현
 
-#### GameMode
+#### GameMode 구현
 
 - 프로젝트의 Custom 한 Pawn 클래스와 Controller를 넣기 위해 GameMode를 상속받는 C++ 클래스를 만든 뒤 이를 BP 클래스로 재 상속 받아 사용하였습니다 사용 방법은 다음과 같습니다.
 ![Image](https://github.com/user-attachments/assets/9baceccf-f6ec-49e0-bbf9-cbf0ac01f075)
@@ -37,7 +37,7 @@
 
 ---
 
-#### DroneController
+#### DroneController 세부 구현
 
 - Drone Pawn의 움직임을 제공하며 동시에 바인딩 하기위한 PlayerConroller를 상속받는 클래스를 C++ 클래스로 구현 후 BP 클래스로 다시 랩핑하였습니다.
 - 해당 클래스는 InputMappingContext 클래스와 Input Action 클래스를 UPROPERTY() 멤버 변수로 가지며 생성자에서 초기화합니다.
@@ -57,7 +57,7 @@
 ```
 ---
 
-#### 드론을 위한 IMC 클래스와 IA 클래스 연동 방법
+##### 드론 움직임 입력을 위한 IMC 클래스와 IA 클래스 연동 방법
 - 6방향 이동과 3개 축의 회전을 위해 3개의 IA 클래스를 준비했습니다.
 	- P03_IA_Move : value_type(Axis3D/Vector)
 	- P03_IA_Look : value_type(Axis2D/Vector)
@@ -70,7 +70,74 @@
 
   ![Image](https://github.com/user-attachments/assets/5adbd866-c1a4-4737-aac4-1bf9ec288622)
 
-####
+#### Drone Pawn 클래스 세부 구현
+- Drone 클래스의 주요 기능은 다음과 같습니다
+	- 주요 컴포넌트(충돌 컴포넌트, 카메라,카메라 암, 스테틱 메쉬) 초기화 및 계층 설정
+ 	- 이동, 회전 함수와 PlayerInputComponent와 바인딩
+  	- 바인딩 된 각 주요 함수의 기능
+  	- Tick 함수 내부의 중력 및 낙하 처리
+  	- 체공 상태, 착지 상태를 판별하는 CheckIfOnGround 함수 
+
+##### 주요 컴포넌트 설정
+- 주요 컴포넌트와 세부적인 드론의 설정 값(이동 속도, 회전 속도)은 전부 UPROPERTY() 속성을 통해 추후 상속받을 BP 클래스에서 세부설정이 UE Editor에서 가능하도록 했습니다.
+- 이들은 전부 생성자에서 초기화 되며 계층구조를 형성합니다. 
+```C++
+	AP03_Test_Drone();
+
+public:
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = CapsuleComponent, meta = (AllowPrivateAccess = "true"))
+	USphereComponent* RootCollisionComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class USpringArmComponent* CameraArm;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
+	class UCameraComponent* Camera;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = SkelatalMesh, meta = (AllowPrivateAccess = "true"))
+	class UStaticMeshComponent* StaticMesh;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MovementSpeed)
+	float GroundSpeed = 3000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MovementSpeed)
+	float AirSpeed = 2000.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MovementSpeed)
+	float YawPitchRotationSpeed = 100.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MovementSpeed)
+	float RollRotationSpeed = 80.0f;
+```
+```C++
+AP03_Test_Drone::AP03_Test_Drone()
+{
+ 	// Set this pawn to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	PrimaryActorTick.bCanEverTick = true;
+	RootCollisionComponent = CreateDefaultSubobject<USphereComponent>(TEXT("RootCollisioComponent"));
+	SetRootComponent(RootCollisionComponent);
+	RootCollisionComponent->SetRelativeScale3D(FVector(3.0f,3.0f,3.0f));
+
+	CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraArm"));
+	CameraArm->SetupAttachment(RootCollisionComponent);
+	CameraArm->TargetArmLength = 600.0f;
+
+	CameraArm->SetRelativeRotation(FRotator(-30.0f, 0.0f, 0.0f));
+	CameraArm->bUsePawnControlRotation = true;
+
+
+	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
+	Camera->SetupAttachment(CameraArm);
+	Camera->bUsePawnControlRotation = false;
+
+	StaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StaticMesh"));
+	StaticMesh->SetupAttachment(RootCollisionComponent);
+}
+```
+
+
+
 ### 시연 영상
 
 
