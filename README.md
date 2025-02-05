@@ -240,6 +240,7 @@ void AP03_Test_Drone::Look(const FInputActionValue& value)
 - 착지판단을 위해 일정 크기(Drone Pawn의 하부 크기를 가늠한 크기) 만큼 World의 Z축 음의 방향으로 RayCasting을 수행했습니다.
 - 이때 RayCasting을 통해 특정 액터와 충돌 감지했을 경우 해당 액터의 **태그가 "Ground" 인 경우 땅이라고 판단**하도록 구현했습니다.
 - 이렇게 설정된 멤버 변수 bIsOnGround bool 변수는 추후 이동 속도나 중력 가속도 적용 여부를 결정합니다.
+- LineTraceSingleByChannel의 첫 번째 인자로 전달해준 FHitResult는 처음으로 Block한 오브젝트를 정보 저장해서 담아 주는 구조체다.  
 ```C++
 
 // header
