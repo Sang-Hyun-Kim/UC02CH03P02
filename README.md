@@ -64,10 +64,10 @@
 	- P03_IA_Roll :value_type(Axis1D/float)
 - IMC 맵핑
 	- P03_IA_Move : 전/후/좌/우 와 상/하 이동을 구분할 수 있었지만 3d 벡터로 합친 이유는, 축변화 Modifier인 스위즐 입력 축 값을 사용해보고 싶었습니다. 상, 하 입력에 대한 Modifier는 아래 사진처럼 적용해 사용했습니다.
-   
+   - P03_IA_Look : 마우스 X/Y축 변화량에 대해 비행체가 Yaw/Pitch 축으로 회전하길 원했습니다.
+  	- P03_IA_Roll : Q/E 키보드 입력으로 Roll 축 회전하도록 맵핑했습니다.
 ![Image](https://github.com/user-attachments/assets/74a2d207-dc42-4e71-ad26-5a2e5c02d600)
-	- P03_IA_Look : 마우스 X/Y축 변화량에 대해 비행체가 Yaw/Pitch 축으로 회전하길 원했습니다.
- 	- P03_IA_Roll : Q/E 키보드 입력으로 Roll 축 회전하도록 맵핑했습니다.
+
   ![Image](https://github.com/user-attachments/assets/5adbd866-c1a4-4737-aac4-1bf9ec288622)
 
 ####
