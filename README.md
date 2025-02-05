@@ -198,24 +198,42 @@ void AP03_Test_Drone::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 - Look 함수는 넘겨 받은 FVector2d 값을 DeltaSeconds 값에 맞춰 SetActorRelativeRotation 함수를 통해 넘겨 줍니다.
 - 이때 오일러 각에 따른 회전 순서로 인한 짐볼 락(Gimbal Lock) 현상을 방지하기 위해 언리얼에서 제공하는 쿼터니언 값으로 Rotator 값을 수정했습니다. 
 - 회전해야할 쿼터니안 값을 라디안을 통해 계산한 다음 이를 현재 회전 값에 결합(*)하여 이를 최종적으로 Actor 회전 값으로 설정합니다.
-  ```C++
-	const FVector3d MoveInput = value.Get<FVector3d>();
+```C++
+void AP03_Test_Drone::Look(const FInputActionValue& value)
+	{
+		const FVector2d MoveInput = value.Get<FVector2d>();
+		FRotator CurrentRotation = GetActorRotation();
+		FQuat CurrentQuat = FQuat(CurrentRotation);
+		// Yaw와 Pitch에 대해 회전량 계산
+		float YawDelta =  MoveInput.X * YawPitchRotationSpeed * GetWorld()->GetDeltaSeconds();
+		float PitchDelta = MoveInput.Y * YawPitchRotationSpeed * GetWorld()->GetDeltaSeconds();
 	
-	// 땅과 하늘 중 맞는 속도의 값만 반영됨
-	FVector NewVel = (MoveInput) * GroundSpeed * bIsOnGround + MoveInput * AirSpeed* !bIsOnGround;
-
-	AddActorLocalOffset(NewVel * GetWorld()->GetDeltaSeconds(), true);
+		FQuat YawQuat = FQuat(FVector(0, 0, 1), FMath::DegreesToRadians(YawDelta));  // Yaw (Z축 회전)
+		FQuat PitchQuat = FQuat(FVector(0, 1, 0), FMath::DegreesToRadians(PitchDelta));  // Pitch (X축 회전)
+		// 현재 회전값에 새 회전값을 합침
+		CurrentQuat *= YawQuat;  // Yaw 회전 적용
+		CurrentQuat *= PitchQuat;  // Pitch 회전 적용
+	
+		// 결과적으로 최종 회전값을 Actor에 적용
+		SetActorRelativeRotation(CurrentQuat);
+	}
   ```
 ###### Roll(X 축 회전) 함수
 - Roll 함수는 넘겨 받은 float 값을 DeltaSeconds 값에 맞춰 SetActorRelativeRotation 함수를 통해 넘겨 줍니다.
 - 위 Look 함수와 동일한 방식으로 쿼터니안 값을 현재 회전 값에 결합해 액터의 Rotator를 설정해줍니다.
   ```C++
-	const FVector3d MoveInput = value.Get<FVector3d>();
+	void AP03_Test_Drone::Roll(const FInputActionValue& value)
+	{
+		const float MoveInput = value.Get<float>();
+		FRotator CurrentRotation = GetActorRotation();
+		FQuat CurrentQuat = FQuat(CurrentRotation);
+		// Yaw와 Pitch에 대해 회전량 계산
+		float RollDelta = MoveInput * RollRotationSpeed * GetWorld()->GetDeltaSeconds();
+		FQuat RollQuat = FQuat(FVector(1, 0, 0), FMath::DegreesToRadians(RollDelta));
 	
-	// 땅과 하늘 중 맞는 속도의 값만 반영됨
-	FVector NewVel = (MoveInput) * GroundSpeed * bIsOnGround + MoveInput * AirSpeed* !bIsOnGround;
-
-	AddActorLocalOffset(NewVel * GetWorld()->GetDeltaSeconds(), true);
+		CurrentQuat *= RollQuat;
+		SetActorRelativeRotation(CurrentQuat);
+	}
   ```
 #### 착지 판단과 중력 적용 기능
 ##### 착지 판단
