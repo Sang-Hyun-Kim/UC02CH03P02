@@ -265,6 +265,8 @@ void AP03_Test_Drone::CheckIfOnGround()
 	}
 }
 ```
+![Image](https://github.com/user-attachments/assets/c18d312c-110f-4a37-b41e-2faeef1dd842)
+
 ##### Tick 중력 적용
 - Tick 함수 내부에서 CheckIfOnGround() 함수를 수행 후 이전 Z값과 현재 Z값의 변화량이 음의 방향인 경우(중력과 반대되는 벡터가 아닌 경우를 상승중이라고 임의로 설정한 기준에서 벗어남을 뜻함) 중력 가속도가 적용됩니다.
 
@@ -302,7 +304,7 @@ void AP03_Test_Drone::Tick(float DeltaTime)
 ```
 ### 시연 영상
 
-
+[![Video Label](http://img.youtube.com/vi/4BXOv_Qad1I/0.jpg)](https://youtu.be/4BXOv_Qad1I)
 ---
 
 ### 회고 및 어려웠던 점
