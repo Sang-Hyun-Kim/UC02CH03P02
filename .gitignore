@@ -72,3 +72,13 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+
+# Custom Unreal Ignore for source only
+Config/
+
+Content/
+
+Platforms/
+
+*.uproject
